@@ -1,0 +1,98 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace ConsoleApp1
+{
+    class Program
+    {
+        public static int male = 0;
+        public static int missinglines = 0;
+        public static int totallines = 0;
+        public static List<string> years = new List<string>();
+        public static bool dataFlag = true;
+        public static bool flag = true;
+        public static StreamReader bulkdata = new StreamReader("../../../../Traffic_Violations.csv");
+        public static char[] chunk = new char[1024 * 1024];
+        public static void Main(string[] args)
+        {
+            ProcessStart();
+            Console.ReadKey();
+        }
+        public async static void ProcessStart() {
+            string data = null;
+            while (dataFlag)
+            {
+                if (flag)
+                {
+                    //Console.WriteLine("reading first chunk");
+                    await Reader();
+                    data = Reader().Result;
+                    flag = false;
+                }
+                else
+                {
+                    //Console.WriteLine("In Else Loop");
+                    await Task.WhenAll(Reader(), Process(data));
+                    //Console.WriteLine(male);
+                    data = Reader().Result;                    
+                }
+                //Console.WriteLine(dataFlag);
+            }
+            //Console.WriteLine("final process ongoing");
+            await Process(data);
+            Console.WriteLine("Missinglines -{0} ActualLines - {1} ",missinglines,totallines);
+            foreach (string temp in years) {
+                Console.WriteLine(temp);
+            }
+            
+        }
+        public async static Task<string> Reader()
+        {
+            int dataMonitor = await bulkdata.ReadAsync(chunk, 0, chunk.Length);
+            //Console.WriteLine(dataFlag);
+            totallines +=  chunk.Length;
+            dataFlag = (dataMonitor == 0)?false : true;
+            //Console.WriteLine(dataFlag);
+            return new string(chunk);
+        }
+        public async static Task Process(string data)
+        {
+           // Console.WriteLine("Process on data started");
+            List<string> datarows = data.Split("\n").ToList();
+            Task loop1 = CountMale(datarows);
+            await loop1;
+
+        }
+        public static Task CountMale(List<string> array)
+        {
+            return Task.Factory.StartNew(() =>
+            {
+                foreach (string row in array)
+                {
+                    string[] rowarray = row.Split(",");
+                    if (rowarray.Length == 37)
+                    {
+                        try
+                        {
+                            string year = rowarray[0].Substring(rowarray[0].LastIndexOf("/") + 1);
+                            if (!years.Contains(year))
+                            {
+                                years.Add(year);
+                            }
+                            totallines++;
+                        }
+                        catch
+                        {
+                            missinglines++;
+                        }
+                    }
+                    
+                }
+            });
+       }
+    }
+}
